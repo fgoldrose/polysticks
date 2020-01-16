@@ -1,12 +1,9 @@
 import copy
 import networkx as nx
 import matplotlib.pyplot as plt
+import numpy as np
 
-n = 2
 
-graph = {}
-
-start_state = [None]*n
 
 def state_name(state, vertical):
 	name = []
@@ -26,7 +23,7 @@ def state_name(state, vertical):
 
 
 # returns a list of states vertically accessible from state
-def vert(state):
+def vert(state, n):
 	state_copy = copy.deepcopy(state)
 	vert_results = []
 	vert_results.append(state_copy)
@@ -57,7 +54,7 @@ def vert(state):
 	return vert_results
 
 
-def horiz(state):
+def horiz(state, n):
 	state_copy = copy.deepcopy(state)
 	horiz_results = []
 	horiz_results.append(state_copy)
@@ -97,10 +94,13 @@ def name_to_state(name):
 
 	return state
 
-def generate_graphs(start):
+def generate_graph(n):
+	graph = {}
+	start= [None]*n
+
 	name = state_name(start, True)
 	graph[name] = {}
-	vert_results = vert(start)
+	vert_results = vert(start, n)
 	for v in vert_results:
 		sn = state_name(v, False)
 		if sn in graph[name]:
@@ -123,23 +123,21 @@ def generate_graphs(start):
 						if valid_end(s):
 							graph_updates[s]['END'] = {'weight': 1}					
 						newstate = name_to_state(s)					
-						horiz_results = horiz(newstate)
+						horiz_results = horiz(newstate, n)
 						for h in horiz_results:
 							sn = state_name(h, True)
 							graph_updates[s][sn] = {'weight': 1}
-					elif s[0] == "V":
+					else:
 						newstate = name_to_state(s)
-						vert_results = vert(newstate)
+						vert_results = vert(newstate, n)
 						for v in vert_results:
 							sn = state_name(v, False)
 							if sn in graph_updates[s]:
 								graph_updates[s][sn]['weight'] +=1
 							else:
 								graph_updates[s][sn] = {'weight': 1}
-					else:
-						print("sanity check")
-						print(s[0])
 		graph.update(graph_updates)
+	return graph
 
 #checks if there are multiple groups
 def valid_end(name):
@@ -153,7 +151,7 @@ def valid_end(name):
 	if len(s) != 1:
 		return False
 	return True
-
+'''
 #checks if there are multiple groups
 def invalid_end(name):
 	s = set(name)
@@ -192,15 +190,64 @@ def enumerate(width, start, vert, top, bottom):
 				b = True
 			acc += enumerate(width, h, True, t, b)
 	return acc
+	'''
+'''
+def enum_helper(n,m, powers):
+	if m == 1:
+		return 1
+	total = powers[2*m][0,1]
+	print('total', total)
+	walks = total
+	for i in range(1, m):
+		h = enum_helper(n, i, powers)
+		print(i, h)
+		walks -= 2* h
+	if(m > 2):
+		j = powers[2*(m-2)][0,1]
+		print(i,j)
+		walks -= j
+	return walks
+
+def enumerate(n,m):
+	powers = {}
+	graph = generate_graph(n)
+	G = nx.DiGraph(graph)
+	matrix = nx.to_numpy_matrix(G)
+	powers[1] = matrix
+	for i in range(2, 2*m+1):
+		newmatrix = copy.copy(matrix)
+		newmatrix = np.matmul(newmatrix, powers[1])
+		powers[i] = newmatrix
+		matrix = newmatrix
+	walks = enum_helper(n,m, powers)
+	return walks
+'''
+
+def enum_helper(n,m, matrices):
+	if n < 1:
+		return 0
+	if n == 1:
+		return 1
+	powered = np.linalg.matrix_power(matrices[n], 2*m)
+	walks = powered[0,1]
+	for i in range(1, n):
+		walks -= 2 * enum_helper(i, m, matrices)
+	if n > 2:
+		walks -= np.linalg.matrix_power(matrices[n-2], 2*m)[0,1]
+	return walks
 
 
-generate_graphs(start_state)
-print("graph")
-for v in graph:
-	print(v, graph[v])
-G = nx.DiGraph(graph)
-A = nx.adjacency_matrix(G, weight='weight')
-print(A.todense())
+def enumerate(n, m):
+	matrices = {}
+	for i in range(1, n+1):
+		graph = generate_graph(i)
+		G = nx.DiGraph(graph)
+		matrix = nx.to_numpy_matrix(G)
+		matrices[i] = matrix
+	walks = enum_helper(n,m, matrices)
+	return walks
+
+print(enumerate(6,6))
 #nx.draw(G, with_labels=False)
 #plt.show()
 
